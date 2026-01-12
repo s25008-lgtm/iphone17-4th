@@ -25,21 +25,16 @@ body{
   flex:1;
   font-size:14px;
 }
-.final{
-  width:55px;
+.qty{
+  width:60px;
   padding:4px;
   color:red;
   font-weight:bold;
 }
-.pm{
-  width:70px;
-  padding:4px;
-  color:#007aff;
-}
 .pm-btn{
   width:26px;
   height:26px;
-  margin-left:2px;
+  margin-left:4px;
   border:none;
   border-radius:6px;
   background:#e5e5ea;
@@ -55,9 +50,7 @@ button.main{
   color:white;
   font-size:16px;
 }
-button.danger{
-  background:#ff3b30;
-}
+button.danger{background:#ff3b30;}
 pre{
   background:#f0f0f0;
   padding:10px;
@@ -75,18 +68,9 @@ th,td{
   padding:6px;
   text-align:center;
 }
-.action{
-  color:#007aff;
-  cursor:pointer;
-}
-.delete{
-  color:#ff3b30;
-  margin-left:6px;
-}
-.red{
-  color:red;
-  font-weight:bold;
-}
+.action{color:#007aff;cursor:pointer;}
+.delete{color:#ff3b30;margin-left:6px;}
+.red{color:red;font-weight:bold;}
 </style>
 </head>
 
@@ -95,7 +79,6 @@ th,td{
 
 <h2>📱 苹果手机购买统计</h2>
 
-<!-- 统计输入区 -->
 <div id="list"></div>
 
 <input id="remark" placeholder="备注（客户 / 批次等）"
@@ -124,69 +107,59 @@ th,td{
 </div>
 
 <script>
-/* ====== 型号配置（格式完全按你给的） ====== */
+/* ===== 型号配置（格式不动） ===== */
 const items = [
 ["Max 256 silver","Max"],["Max256blue","Max"],["Max256orange","Max"],
 ["Max 512 silver","Max"],["Max 512 blue","Max"],["Max 512 orange","Max"],
 ["Max 1TB silver","Max"],["Max 1TB orange","Max"],["Max 1TB blue","Max"],
-
 ["Pro 256 silver","Pro"],["Pro256blue","Pro"],["Pro256orange","Pro"],
 ["Pro 512 silver","Pro"],["Pro 512 orange","Pro"],["Pro 512 blue","Pro"],
-
 ["17 256white","17"],["17 256black","17"],["17 256 blue","17"],
 ["17 256 lavender","17"],["17 256 sage","17"]
 ];
 
-/* ====== DOM ====== */
 const listEl   = document.getElementById("list");
 const historyEl= document.getElementById("history");
 const resultEl = document.getElementById("result");
 const remarkEl = document.getElementById("remark");
 
-/* ====== 数据 ====== */
 let history = JSON.parse(localStorage.getItem("appleHistory") || "[]");
 
-/* ====== 渲染输入列表 ====== */
-function renderList(){
+/* ===== 渲染输入列表 ===== */
+function renderList(data = {}){
   let html="";
   items.forEach(([label])=>{
+    const v = data[label] ?? "";
     html += `
 <div class="item">
   <span>${label} ×</span>
-  <input class="final" data-l="${label}" placeholder="0">
-  <input class="pm" data-l="${label}" placeholder="+1 -1">
-  <button class="pm-btn" onclick="add('${label}',1)">＋</button>
-  <button class="pm-btn" onclick="add('${label}',-1)">－</button>
+  <input class="qty" data-l="${label}" value="${v}">
+  <button class="pm-btn" onclick="change('${label}',1)">＋</button>
+  <button class="pm-btn" onclick="change('${label}',-1)">－</button>
 </div>`;
   });
   listEl.innerHTML = html;
 }
 
-/* ====== ➕➖ 操作 ====== */
-function add(label,n){
-  const f = document.querySelector(`.final[data-l="${label}"]`);
-  f.value = (Number(f.value) || 0) + n;
+function change(label,n){
+  const el = document.querySelector(`.qty[data-l="${label}"]`);
+  el.value = (Number(el.value) || 0) + n;
 }
 
-/* ====== 解析 +1 -1 ====== */
-function pmValue(text){
-  const m = text.match(/[+-]\d+/g);
-  return m ? m.reduce((s,n)=>s+Number(n),0) : 0;
-}
-
-/* ====== 保存并统计 ====== */
+/* ===== 保存 ===== */
 function save(){
-  let sum = {Max:0, Pro:0, "17":0};
-  let total = 0;
-  let text = "";
+  let sum={Max:0,Pro:0,"17":0};
+  let total=0;
+  let text="";
+  let data={};
 
   items.forEach(([label,group])=>{
-    const f = document.querySelector(`.final[data-l="${label}"]`).value;
-    const p = document.querySelector(`.pm[data-l="${label}"]`).value;
-    const v = f !== "" ? Number(f) : pmValue(p);
-
-    sum[group] += v;
-    total += v;
+    const v = Number(
+      document.querySelector(`.qty[data-l="${label}"]`).value || 0
+    );
+    data[label]=v;
+    sum[group]+=v;
+    total+=v;
     text += `${label} ×${v || ""}\n`;
   });
 
@@ -197,73 +170,69 @@ Pro 合计：${sum.Pro}
 17 合计：${sum["17"]}
 总计：${total}`;
 
-  const record = {
-    time: new Date().toLocaleString(),
-    remark: remarkEl.value || "-",
+  history.unshift({
+    time:new Date().toLocaleString(),
+    remark:remarkEl.value||"-",
     total,
-    text
-  };
+    text,
+    data
+  });
 
-  history.unshift(record);
-  localStorage.setItem("appleHistory", JSON.stringify(history));
-
-  resultEl.innerText = text;
-  remarkEl.value = "";
+  localStorage.setItem("appleHistory",JSON.stringify(history));
+  resultEl.innerText=text;
+  remarkEl.value="";
   renderHistory();
 }
 
-/* ====== 复制最终统计 ====== */
+/* ===== 复制 ===== */
 function copyResult(){
-  const text = resultEl.innerText.trim();
-  if(!text){
-    alert("没有可复制的统计结果");
-    return;
-  }
-  navigator.clipboard.writeText(text).then(()=>{
-    alert("统计结果已复制，可以直接粘贴");
-  });
+  if(!resultEl.innerText) return alert("没有结果");
+  navigator.clipboard.writeText(resultEl.innerText)
+    .then(()=>alert("已复制"));
 }
 
-/* ====== 历史 ====== */
+/* ===== 历史 ===== */
 function renderHistory(){
-  historyEl.innerHTML = "";
+  historyEl.innerHTML="";
   history.forEach((r,i)=>{
-    historyEl.innerHTML += `
+    historyEl.innerHTML+=`
 <tr>
-  <td>${r.time}</td>
-  <td>${r.remark}</td>
-  <td class="red">${r.total}</td>
-  <td>
-    <span class="action" onclick="view(${i})">查看</span>
-    <span class="action delete" onclick="del(${i})">删除</span>
-  </td>
+<td>${r.time}</td>
+<td>${r.remark}</td>
+<td class="red">${r.total}</td>
+<td>
+<span class="action" onclick="load(${i})">载入</span>
+<span class="action delete" onclick="del(${i})">删除</span>
+</td>
 </tr>`;
   });
 }
 
-function view(i){
+function load(i){
+  renderList(history[i].data);
   resultEl.innerText = history[i].text;
 }
 
 function del(i){
-  if(confirm("确定删除这一条？")){
+  if(confirm("确定删除？")){
     history.splice(i,1);
-    localStorage.setItem("appleHistory", JSON.stringify(history));
+    localStorage.setItem("appleHistory",JSON.stringify(history));
     renderHistory();
-    resultEl.innerText = "";
+    resultEl.innerText="";
   }
 }
 
 function clearAll(){
   if(confirm("确定清空全部历史？")){
-    history = [];
+    history=[];
     localStorage.removeItem("appleHistory");
     renderHistory();
-    resultEl.innerText = "";
+    resultEl.innerText="";
+    renderList();
   }
 }
 
-/* ====== 初始化 ====== */
+/* ===== 初始化 ===== */
 renderList();
 renderHistory();
 </script>
